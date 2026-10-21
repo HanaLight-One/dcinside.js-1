@@ -38,3 +38,4 @@ export {UploadApi, type MovieInfo} from "./api/uploads";
 export {UserApi, type ScrapTarget} from "./api/user";
 
 export type * from "./types/responses";
+export {publicationDiagnostic} from "./diagnostics";

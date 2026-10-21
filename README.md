@@ -137,3 +137,5 @@ bun run build
 ## 라이선스
 
 GPL-3.0-only
+> **Hanabit experimental fork:** See [HANABIT.md](HANABIT.md) for changes and limits. Not deployed to production; current live posting failure remains unresolved. Package publishing is disabled. Original upstream documentation follows.
+

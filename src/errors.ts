@@ -3,6 +3,14 @@ export class DCInsideError extends Error {
     override name = "DCInsideError";
 }
 
+/** 전송 후 결과를 확인하지 못했습니다. 자동 재제출하면 안 됩니다. */
+export class UnexpectedResponseError extends DCInsideError {
+    override name = "UnexpectedResponseError";
+    constructor(readonly status: number, readonly reason: "non-json" | "unconfirmed-result") {
+        super(`Unverified API response: ${reason}`);
+    }
+}
+
 /** HTTP 상태가 2xx가 아니고 본문에서 API 응답을 읽을 수 없을 때 발생합니다. */
 export class HTTPError extends DCInsideError {
     override name = "HTTPError";
@@ -16,7 +24,7 @@ export class HTTPError extends DCInsideError {
 export class ApiError extends DCInsideError {
     override name = "ApiError";
 
-    constructor(override readonly cause: string, readonly response: unknown) {
+    constructor(override readonly cause: string, readonly response: unknown, readonly status?: number) {
         super(cause || "API request failed");
     }
 }

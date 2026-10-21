@@ -1,6 +1,7 @@
 {
-    "name": "@green-1052/dcinside.js",
-    "version": "2.0.1",
+    "name": "@hanalight-one/dcinside.js",
+    "version": "2.0.2-hanabit.0",
+    "private": true,
     "description": "디시인사이드 안드로이드 앱(5.3.6) API 비공식 클라이언트",
     "license": "GPL-3.0-only",
     "type": "module",
@@ -21,7 +22,7 @@
         "typecheck": "tsc --noEmit",
         "prepublishOnly": "bun run build"
     },
-    "repository": "github:green1052/dcinside.js",
+    "repository": "github:HanaLight-One/dcinside.js-1",
     "devDependencies": {
         "@types/bun": "^1.4.3",
         "bun-plugin-dtsx": "^0.11.19",

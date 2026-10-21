@@ -1,5 +1,5 @@
 import {APP, HOST, REDIRECTED_PATHS} from "./constants";
-import {ApiError, AuthExpiredError, CaptchaRequiredError, HTTPError} from "./errors";
+import {ApiError, AuthExpiredError, CaptchaRequiredError, HTTPError, UnexpectedResponseError} from "./errors";
 import {normalize} from "./normalize";
 import type {ResponseMap} from "./types/responses";
 import {first, isCaptchaCause, isFailure, list, parseJson} from "./util";
@@ -23,6 +23,12 @@ export interface HttpOptions {
 }
 
 export interface RequestOptions {
+    /** 비멱등 작업은 false: 인증 갱신 후에도 요청을 자동 재전송하지 않습니다. */
+    retryAuth?: boolean;
+    /** HTML/문자열/불명확한 JSON을 성공으로 취급하지 않습니다. */
+    requireApiResult?: boolean;
+    /** 전송 직전 영속 제출 기록을 만들 때 사용합니다. 실패하면 전송하지 않습니다. */
+    beforeSend?: () => Promise<void>;
     /** `app_id`를 자동으로 붙일지 여부입니다. 기본값은 app/upload/m 호스트에서 `true`입니다. */
     appId?: boolean;
     /** 응답을 배열로 돌려받습니다. 기본은 첫 객체입니다. */
@@ -97,13 +103,17 @@ export class Http {
             all["app_id"] = await this.context.appId();
         }
 
+        await options.beforeSend?.();
+
         const response = method === "GET"
             ? await this.fetch(this.buildGetUrl(target, all), {headers: options.headers})
-            : await this.fetch(target, {method, headers: options.headers, body: options.urlencoded ? toSearchParams(all) : toFormData(all)});
+            : await this.fetch(target, {method, headers: options.headers, redirect: options.requireApiResult ? "error" : undefined,
+                body: options.urlencoded ? toSearchParams(all) : toFormData(all)});
         const text = await response.text();
         const json = parseJson(text);
         if (json === undefined) {
             if (!response.ok) throw new HTTPError(response.status, text);
+            if (options.requireApiResult) throw new UnexpectedResponseError(response.status, "non-json");
             return text;
         }
 
@@ -112,7 +122,7 @@ export class Http {
         const expired = cause === "certification" || String(object["refresh_join"]) === "true" ? "appId"
             : cause === "certification_login" ? "login" : null;
         if (expired && this.context) {
-            if (retried) throw new AuthExpiredError(expired, cause, json);
+            if (retried || options.retryAuth === false) throw new AuthExpiredError(expired, cause, json);
             if (expired === "appId") await this.context.refreshAppId();
             else if (!(await this.context.relogin())) throw new AuthExpiredError("login", cause, json);
             // 원래 필드로 다시 보내야 새 app_id가 주입됩니다.
@@ -121,9 +131,12 @@ export class Http {
 
         if (!options.raw && isFailure(object)) {
             const message = cause || (typeof object["msg"] === "string" ? object["msg"] : "");
-            throw isCaptchaCause(message) ? new CaptchaRequiredError(message, json) : new ApiError(message, json);
+            throw isCaptchaCause(message) ? new CaptchaRequiredError(message, json, response.status) : new ApiError(message, json, response.status);
         }
         if (!response.ok) throw new HTTPError(response.status, text);
+        if (options.requireApiResult && ![true, "true", 1, "1"].includes(object["result"] as boolean | string | number)) {
+            throw new UnexpectedResponseError(response.status, "unconfirmed-result");
+        }
         // 배열/숫자 키 객체는 앱처럼 첫 객체를 꺼냅니다. 보통 객체는 그대로입니다.
         const result = options.list ? list(json) : json && typeof json === "object" ? first(json) : json;
         if (!options.as) return result;

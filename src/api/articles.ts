@@ -57,6 +57,8 @@ export type ArticleBlock =
     | { type: "dccon"; tag: string; detailIdx: number; packageIdx?: number };
 
 export interface ArticleWriteOptions {
+    /** 최종 전송 직전 영속 제출 기록을 남기는 훅. 실패하면 제출하지 않습니다. */
+    beforeSubmit?: () => Promise<void>;
     gallery: string;
     subject: string;
     content: ArticleBlock[];
@@ -156,6 +158,14 @@ export class ArticleApi extends Api {
     /** 글을 쓰거나(`articleNo` 없음) 수정합니다. (`_app_write_api.php`) */
     async write(options: ArticleWriteOptions): Promise<ApiResult> {
         const session = this.requireSession();
+        if (!options.gallery?.trim() || !options.subject?.trim() || !options.content?.length) {
+            throw new TypeError("Gallery, subject and content are required");
+        }
+        for (const block of options.content) {
+            if (typeof block !== "string" && block.type === "image" && (!(block.file instanceof Blob) || block.file.size === 0)) {
+                throw new TypeError("Image must be a non-empty Blob");
+            }
+        }
         const fields: Fields = {
             id: options.gallery,
             mode: options.validateOnly ? "validate" : options.articleNo ? "modify" : "write",
@@ -198,7 +208,9 @@ export class ArticleApi extends Api {
             }
         });
 
-        return this.post("ApiResult", `${HOST.upload}/_app_write_api.php`, fields);
+        return this.post("ApiResult", `${HOST.upload}/_app_write_api.php`, fields, {
+            retryAuth: false, requireApiResult: true, beforeSend: options.beforeSubmit
+        });
     }
 
     /** 수정 화면에 필요한 기존 제목/본문/첨부를 가져옵니다. (`gall_modify.php`) */
