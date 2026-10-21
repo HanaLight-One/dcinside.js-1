@@ -1,5 +1,7 @@
 # dcinside.js
 
+> **Hanabit experimental fork:** See [HANABIT.md](HANABIT.md) for changes and limits. Not deployed to production; current live posting failure remains unresolved. Package publishing is disabled. Original upstream documentation follows.
+
 디시인사이드 안드로이드 앱 API를 그대로 쓰는 비공식 클라이언트입니다.
 
 - 앱이 쓰는 엔드포인트 130여 개를 모듈별로 제공합니다.
@@ -137,5 +139,3 @@ bun run build
 ## 라이선스
 
 GPL-3.0-only
-> **Hanabit experimental fork:** See [HANABIT.md](HANABIT.md) for changes and limits. Not deployed to production; current live posting failure remains unresolved. Package publishing is disabled. Original upstream documentation follows.
-
