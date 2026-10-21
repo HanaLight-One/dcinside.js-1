@@ -20,4 +20,10 @@ Run `bun test`, `bun run typecheck`, `bun run build`. All tests use synthetic cr
 
 ## Still unresolved
 
+### Structured pilot diagnostics
+
+`articles.write({..., onDiagnostic: async event => persist(event)})` emits prepared image/block counts and credential-presence booleans, then HTTP status, JSON/result classifications and fixed reason categories. It never passes raw headers, URLs, server fields, body or credentials. A failed prepared journal prevents transport; a failed response journal rejects without retry, so retain the caller's durable intent. Transport failures distinguish whether headers were received. Unknown server messages are deliberately not exported.
+
+Run `node --test tools/node-publication-smoke.mjs` after building to check the actual Node artifact. It uses synthetic credentials and a mock transport with real native multipart serialization, including 24 files. Server acceptance remains untested. Store final approved HTML/images separately in the caller's protected job directory before the durable intent; this callback does not save content or reconstruct the previous failed request.
+
 The observed registration rejection is not fixed by these safeguards. Current server requirements, WebP acceptance, source-card handling and any version drift require separate evidence. Do not resume publication schedules or retry an uncertain submission automatically.

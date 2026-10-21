@@ -3,6 +3,7 @@ import {ApiError, AuthExpiredError, CaptchaRequiredError, HTTPError, UnexpectedR
 import {normalize} from "./normalize";
 import type {ResponseMap} from "./types/responses";
 import {first, isCaptchaCause, isFailure, list, parseJson} from "./util";
+import {responseTrace, type PublicationTrace} from "./diagnostics";
 
 /** `as` 옵션에 쓰는 응답 이름입니다. */
 export type ResponseName = keyof ResponseMap;
@@ -23,6 +24,8 @@ export interface HttpOptions {
 }
 
 export interface RequestOptions {
+    /** 제한된 구조 정보만 전달합니다. 준비 기록 저장 실패는 전송을 중단합니다. */
+    onDiagnostic?: (event: PublicationTrace) => Promise<void>;
     /** 비멱등 작업은 false: 인증 갱신 후에도 요청을 자동 재전송하지 않습니다. */
     retryAuth?: boolean;
     /** HTML/문자열/불명확한 JSON을 성공으로 취급하지 않습니다. */
@@ -103,14 +106,31 @@ export class Http {
             all["app_id"] = await this.context.appId();
         }
 
+        if (options.onDiagnostic) {
+            const images = Object.entries(all).filter(([key,value]) => /^upload\[\d+\]$/.test(key) && value instanceof Blob);
+            await options.onDiagnostic({stage:"prepared",imageCount:images.length,
+                imageBytes:images.reduce((sum,[,v])=>sum+(v as Blob).size,0),
+                blockCount:Object.keys(all).filter(key=>/^memo_block\[\d+\]$/.test(key)).length,
+                hasAppId:typeof all.app_id === "string" && all.app_id.length > 0,
+                hasClientToken:typeof all.client_token === "string" && all.client_token.length > 0,
+                hasUserId:typeof all.user_id === "string" && all.user_id.length > 0});
+        }
         await options.beforeSend?.();
 
-        const response = method === "GET"
+        let response: Response | undefined;
+        let text: string;
+        try {
+        response = method === "GET"
             ? await this.fetch(this.buildGetUrl(target, all), {headers: options.headers})
             : await this.fetch(target, {method, headers: options.headers, redirect: options.requireApiResult ? "error" : undefined,
                 body: options.urlencoded ? toSearchParams(all) : toFormData(all)});
-        const text = await response.text();
+        text = await response.text();
+        } catch (error) {
+            await options.onDiagnostic?.({stage:"transport-error",responseReceived:response !== undefined});
+            throw error;
+        }
         const json = parseJson(text);
+        await options.onDiagnostic?.(responseTrace(response.status,json));
         if (json === undefined) {
             if (!response.ok) throw new HTTPError(response.status, text);
             if (options.requireApiResult) throw new UnexpectedResponseError(response.status, "non-json");

@@ -1,6 +1,7 @@
 import type {CaptchaAnswer} from "../auth";
 import {HOST} from "../constants";
 import type {Fields} from "../http";
+import type {PublicationTrace} from "../diagnostics";
 import type {
     ApiResult,
     ArticleDeleteResult,
@@ -57,6 +58,8 @@ export type ArticleBlock =
     | { type: "dccon"; tag: string; detailIdx: number; packageIdx?: number };
 
 export interface ArticleWriteOptions {
+    /** 원문·인증값 없는 구조화 진단. 기록 실패는 호출자에게 전달합니다. */
+    onDiagnostic?: (event: PublicationTrace) => Promise<void>;
     /** 최종 전송 직전 영속 제출 기록을 남기는 훅. 실패하면 제출하지 않습니다. */
     beforeSubmit?: () => Promise<void>;
     gallery: string;
@@ -209,7 +212,7 @@ export class ArticleApi extends Api {
         });
 
         return this.post("ApiResult", `${HOST.upload}/_app_write_api.php`, fields, {
-            retryAuth: false, requireApiResult: true, beforeSend: options.beforeSubmit
+            retryAuth: false, requireApiResult: true, beforeSend: options.beforeSubmit, onDiagnostic: options.onDiagnostic
         });
     }
 

@@ -21,6 +21,8 @@ export {
     OtpRequiredError,
     SessionRequiredError
 } from "./errors";
+export {UnexpectedResponseError} from "./errors";
+export type {PublicationTrace} from "./diagnostics";
 export {decodeHtml, escapeHtml, textToHtml} from "./util";
 
 export {AiImageApi, type AiImageOptions} from "./api/ai";
